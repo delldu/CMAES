@@ -7,10 +7,9 @@
 #************************************************************************************/
 #
 
-TARGET := short
+TARGET := example_gradfree
 
-SOURCE :=  \
-	example_short.c 
+SOURCE :=  example_gradfree.c 
 
 INCS	:= -I../src
 	#  -I$(BUILD_DIR)/include

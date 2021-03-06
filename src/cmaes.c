@@ -191,7 +191,6 @@ void cmaes_FATAL(char const *s1, char const *s2, char const *s3, char const *s4)
 
 static char *getTimeStr(void);
 static void TestMinStdDevs(cmaes_t *);
-/* static void WriteMaxErrorInfo( cmaes_t *); */
 
 static void Eigen(int N, double **C, double *diag, double **Q, double *rgtmp);
 static int Check_Eigen(int N, double **C, double *diag, double **Q);

@@ -2,13 +2,13 @@ DOCUMENTATION (...not comprehensive but hopefully quite useful...)
 
 First of all please spent 2-10 minutes to have a look at the files 
 
-  cmaes_interface.h, and
+  cmaes.h, and
   example_short.c, 
 
 not necessarily in this ordering. 
 
 Then, what follows is the more detailed documentation of the 
-functions from cmaes_interface.h.  
+functions from cmaes.h.  
 
 double * 
 cmaes_init_final(cmaes_t * evo_ptr);

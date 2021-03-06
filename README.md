@@ -17,7 +17,7 @@ Files in this Repository
 - LICENSE : users agreement (no worries)
 - doc.txt : describes general purpose and an application issue
 - docfunctions.txt : Documentation of the library functions. 
-- cmaes_interface.h : User interface header.   
+- cmaes.h : User interface header.   
 - example_short.c : Very short example source code. The purpose of
                the example codes is to be edited/extended.  
 - example_restarts.c : implements additional restarts with increasing
