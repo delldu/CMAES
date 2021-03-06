@@ -997,7 +997,7 @@ static void TestMinStdDevs(cmaes_t * t)
 /* --------------------------------------------------------- */
 void cmaes_WriteToFile(cmaes_t * t, const char *key, const char *name)
 {
-	cmaes_WriteToFileAW(t, key, name, "w");	/* default is append */
+	cmaes_WriteToFileAW(t, key, name, "a");	/* default is append */
 }
 
 /* --------------------------------------------------------- */

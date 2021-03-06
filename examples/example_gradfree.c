@@ -57,11 +57,10 @@ double *search(int epochs)
 	}
 	lambda = 4 + 3*9;	// 4 + 3*log(Z_SPACE_DIM)
 
-
 	// cost_values = cmaes_init(&evo, Z_SPACE_DIM dimmesion, xstart, stddev, 0, lambda, "none");
 	cmaes_init_para(&evo, Z_SPACE_DIM /*dimmesion*/, xstart, stddev, 0, lambda, "none");
 
-	evo.sigma = 1.0;
+	// evo.sigma = 1.0;
 
 	evo.sp.stopMaxIter = epochs;	// stop after given number of iterations (generations)
 	evo.sp.stopFitness.flg = 1;
