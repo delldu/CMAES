@@ -17,6 +17,8 @@
 
 #include <time.h>
 
+#define CheckPoint(fmt, arg...) printf("# CheckPoint: %d(%s): " fmt "\n", (int)__LINE__, __FILE__, ##arg)
+
 typedef struct
 /* cmaes_random_t 
  * sets up a pseudo random number generator instance 
@@ -81,7 +83,7 @@ typedef struct
 	struct {
 		int flg;
 		double val;
-	} stStopFitness;
+	} stopFitness;
 	double stopTolFun;
 	double stopTolFunHist;
 	double stopTolX;

@@ -75,8 +75,7 @@ cmaes_init_para(cmaes_t * evo_ptr, int dimension ,
         seed, int (randomly chosen by default): Random seed, written 
             to actparcmaes.par. 
 
-        lambda, int : population size, number of sampled candidate 
-            solutions per generation. 
+        lambda, int : population size, number of sampled candidate solutions per generation. 
 
         input_parameter_filename, char *: File which should be edited
             properly. Filename "no", "non" or "none" omits reading and 

@@ -155,8 +155,7 @@
 
 /* ------------------- External Visibly -------------------- */
 
-/* see cmaes_interface.h for those, not listed here */
-
+/* see cmaes.h for those, not listed here */
 long cmaes_random_init(cmaes_random_t *, long unsigned seed /* 0==clock */ );
 void cmaes_random_exit(cmaes_random_t *);
 double cmaes_random_Gauss(cmaes_random_t *);	/* (0,1)-normally distributed */
@@ -276,7 +275,7 @@ double *cmaes_init_final(cmaes_t * t /* "this" */ )
 	if (!t->sp.flgsupplemented) {
 		cmaes_readpara_SupplementDefaults(&t->sp);
 		if (!isNoneStr(t->sp.filename))	/* TODO: should this be done in readpara_SupplementDefaults? */
-			cmaes_readpara_WriteToFile(&t->sp, "actparcmaes.par");
+			cmaes_readpara_WriteToFile(&t->sp, "/tmp/cmaes_parameters.txt");
 	}
 
 	t->sp.seed = cmaes_random_init(&t->rand, (long unsigned int) t->sp.seed);
@@ -628,12 +627,15 @@ double *const *cmaes_SamplePopulation(cmaes_t * t)
 	/* treat minimal standard deviations and numeric problems */
 	TestMinStdDevs(t);
 
+	// CheckPoint("flgdiag = %d", flgdiag); flgdiag == 0
+
 	for (iNk = 0; iNk < t->sp.lambda; ++iNk) {	/* generate scaled cmaes_random vector (D * z)    */
-		for (i = 0; i < N; ++i)
+		for (i = 0; i < N; ++i) {
 			if (flgdiag)
 				t->rgrgx[iNk][i] = xmean[i] + t->sigma * t->rgD[i] * cmaes_random_Gauss(&t->rand);
 			else
 				t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss(&t->rand);
+		}
 		if (!flgdiag)
 			/* add mutation (sigma * B * (D*z)) */
 			for (i = 0; i < N; ++i) {
@@ -995,7 +997,7 @@ static void TestMinStdDevs(cmaes_t * t)
 /* --------------------------------------------------------- */
 void cmaes_WriteToFile(cmaes_t * t, const char *key, const char *name)
 {
-	cmaes_WriteToFileAW(t, key, name, "a");	/* default is append */
+	cmaes_WriteToFileAW(t, key, name, "w");	/* default is append */
 }
 
 /* --------------------------------------------------------- */
@@ -1445,16 +1447,19 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 	double range, fac;
 	int iAchse, iKoo;
 	int flgdiag = ((t->sp.diagonalCov == 1) || (t->sp.diagonalCov >= t->gen));
-	static char sTestOutString[3024];
+	static char sTestOutString[1024];
 	char *cp = sTestOutString;
 	int i, cTemp, N = t->sp.N;
+	int len = 0;
+
 	cp[0] = '\0';
 
 	/* function value reached */
-	if ((t->gen > 1 || t->state > 1) && t->sp.stStopFitness.flg &&
-		t->rgFuncValue[t->index[0]] <= t->sp.stStopFitness.val)
-		cp += sprintf(cp, "Fitness: function value %7.2e <= stopFitness (%7.2e)\n",
-					  t->rgFuncValue[t->index[0]], t->sp.stStopFitness.val);
+	if ((t->gen > 1 || t->state > 1) && t->sp.stopFitness.flg &&
+		t->rgFuncValue[t->index[0]] <= t->sp.stopFitness.val)
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+			"Fitness: function value %7.2e <= stopFitness (%7.2e)\n",
+			t->rgFuncValue[t->index[0]], t->sp.stopFitness.val);
 
 	/* TolFun */
 	range = douMax(rgdouMax(t->arFuncValueHist, (int) douMin(t->gen, *(t->arFuncValueHist - 1))),
@@ -1463,7 +1468,9 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 			   rgdouMin(t->rgFuncValue, t->sp.lambda));
 
 	if (t->gen > 0 && range <= t->sp.stopTolFun) {
-		cp += sprintf(cp, "TolFun: function value differences %7.2e < stopTolFun=%7.2e\n", range, t->sp.stopTolFun);
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+			"TolFun: function value differences %7.2e < stopTolFun=%7.2e\n",
+			range, t->sp.stopTolFun);
 	}
 
 	/* TolFunHist */
@@ -1471,9 +1478,9 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 		range = rgdouMax(t->arFuncValueHist, (int) *(t->arFuncValueHist - 1))
 			- rgdouMin(t->arFuncValueHist, (int) *(t->arFuncValueHist - 1));
 		if (range <= t->sp.stopTolFunHist)
-			cp += sprintf(cp,
-						  "TolFunHist: history of function value changes %7.2e stopTolFunHist=%7.2e",
-						  range, t->sp.stopTolFunHist);
+			len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+				"TolFunHist: history of function value changes %7.2e stopTolFunHist=%7.2e",
+				range, t->sp.stopTolFunHist);
 	}
 
 	/* TolX */
@@ -1482,7 +1489,9 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 		cTemp += (t->sigma * t->rgpc[i] < t->sp.stopTolX) ? 1 : 0;
 	}
 	if (cTemp == 2 * N) {
-		cp += sprintf(cp, "TolX: object variable changes below %7.2e \n", t->sp.stopTolX);
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+			"TolX: object variable changes below %7.2e \n", 
+			t->sp.stopTolX);
 	}
 
 	/* TolUpX */
@@ -1491,14 +1500,14 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 			break;
 	}
 	if (i < N) {
-		cp += sprintf(cp,
-					  "TolUpX: standard deviation increased by more than %7.2e, larger initial standard deviation recommended \n",
-					  t->sp.stopTolUpXFactor);
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+				  "TolUpX: standard deviation increased by more than %7.2e, larger initial standard deviation recommended \n",
+				  t->sp.stopTolUpXFactor);
 	}
 
 	/* Condition of C greater than dMaxSignifKond */
 	if (t->maxEW >= t->minEW * t->dMaxSignifKond) {
-		cp += sprintf(cp,
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
 					  "ConditionNumber: maximal condition number %7.2e reached. maxEW=%7.2e,minEW=%7.2e,maxdiagC=%7.2e,mindiagC=%7.2e\n",
 					  t->dMaxSignifKond, t->maxEW, t->minEW, t->maxdiagC, t->mindiagC);
 	}
@@ -1515,7 +1524,7 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 			}
 			if (iKoo == N) {
 				/* t->sigma *= exp(0.2+t->sp.cs/t->sp.damps); */
-				cp += sprintf(cp,
+				len += snprintf(cp + len, sizeof(sTestOutString) - len, 
 							  "NoEffectAxis: standard deviation 0.1*%7.2e in principal axis %d without effect\n",
 							  fac / 0.1, iAchse);
 				break;
@@ -1528,9 +1537,9 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 		if (t->rgxmean[iKoo] == t->rgxmean[iKoo] + 0.2 * t->sigma * sqrt(t->C[iKoo][iKoo])) {
 			/* t->C[iKoo][iKoo] *= (1 + t->sp.ccov); */
 			/* flg = 1; */
-			cp += sprintf(cp,
-						  "NoEffectCoordinate: standard deviation 0.2*%7.2e in coordinate %d without effect\n",
-						  t->sigma * sqrt(t->C[iKoo][iKoo]), iKoo);
+			len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+					"NoEffectCoordinate: standard deviation 0.2*%7.2e in coordinate %d without effect\n",
+					t->sigma * sqrt(t->C[iKoo][iKoo]), iKoo);
 			break;
 		}
 
@@ -1538,12 +1547,16 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 	/* if (flg) t->sigma *= exp(0.05+t->sp.cs/t->sp.damps); */
 
 	if (t->countevals >= t->sp.stopMaxFunEvals)
-		cp += sprintf(cp, "MaxFunEvals: conducted function evaluations %.0f >= %g\n",
-					  t->countevals, t->sp.stopMaxFunEvals);
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+				"MaxFunEvals: conducted function evaluations %.0f >= %g\n",
+				t->countevals, t->sp.stopMaxFunEvals);
 	if (t->gen >= t->sp.stopMaxIter)
-		cp += sprintf(cp, "MaxIter: number of iterations %.0f >= %g\n", t->gen, t->sp.stopMaxIter);
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+				"MaxIter: number of iterations %.0f >= %g\n",
+				t->gen, t->sp.stopMaxIter);
 	if (t->flgStop)
-		cp += sprintf(cp, "Manual: stop signal read\n");
+		len += snprintf(cp + len, sizeof(sTestOutString) - len, 
+			"Manual: stop signal read\n");
 
 #if 0
 	else if (0) {
@@ -1556,10 +1569,7 @@ const char *cmaes_TestForTermination(cmaes_t * t)
 	}
 #endif
 
-	if (cp - sTestOutString > 320)
-		ERRORMESSAGE("Bug in cmaes_t:Test(): sTestOutString too short", 0, 0, 0);
-
-	if (cp != sTestOutString) {
+	if (len > 0) {
 		return sTestOutString;
 	}
 
@@ -1638,8 +1648,8 @@ void cmaes_ReadFromFilePtr(cmaes_t * t, FILE * fp)
 							t->sp.stopMaxIter = d;
 					} else if (strncmp(sin1, "Fitness", 7) == 0) {
 						if (sscanf(sin2, " %lg", &d) == 1) {
-							t->sp.stStopFitness.flg = 1;
-							t->sp.stStopFitness.val = d;
+							t->sp.stopFitness.flg = 1;
+							t->sp.stopFitness.val = d;
 						}
 					} else if (strncmp(sin1, "TolFunHist", 10) == 0) {
 						if (sscanf(sin2, " %lg", &d) == 1)
@@ -2396,7 +2406,7 @@ cmaes_readpara_init(cmaes_readpara_t * t,
 	t->rgsformat[i] = " stopMaxIter %lg";
 	t->rgpadr[i++] = (void *) &t->stopMaxIter;
 	t->rgsformat[i] = " stopFitness %lg";
-	t->rgpadr[i++] = (void *) &t->stStopFitness.val;
+	t->rgpadr[i++] = (void *) &t->stopFitness.val;
 	t->rgsformat[i] = " stopTolFun %lg";
 	t->rgpadr[i++] = (void *) &t->stopTolFun;
 	t->rgsformat[i] = " stopTolFunHist %lg";
@@ -2458,7 +2468,7 @@ cmaes_readpara_init(cmaes_readpara_t * t,
 	t->stopMaxFunEvals = -1;
 	t->stopMaxIter = -1;
 	t->facmaxeval = 1;
-	t->stStopFitness.flg = -1;
+	t->stopFitness.flg = -1;
 	t->stopTolFun = 1e-12;
 	t->stopTolFunHist = 1e-13;
 	t->stopTolX = 0;			/* 1e-11*insigma would also be reasonable */
@@ -2578,7 +2588,7 @@ void cmaes_readpara_ReadFromFile(cmaes_readpara_t * t, const char *filename)
 				continue;
 			if (sscanf(s, t->rgsformat[ipara], t->rgpadr[ipara]) == 1) {
 				if (strncmp(t->rgsformat[ipara], " stopFitness ", 13) == 0)
-					t->stStopFitness.flg = 1;
+					t->stopFitness.flg = 1;
 				break;
 			}
 		}
@@ -2619,7 +2629,7 @@ void cmaes_readpara_WriteToFile(cmaes_readpara_t * t, const char *filenamedest)
 	int ipara, i;
 	size_t len;
 	time_t ti = time(NULL);
-	FILE *fp = fopen(filenamedest, "a");
+	FILE *fp = fopen(filenamedest, "w+");
 	if (fp == NULL) {
 		ERRORMESSAGE("cmaes_WriteToFile(): could not open '", filenamedest, "'", 0);
 		return;
@@ -2640,7 +2650,7 @@ void cmaes_readpara_WriteToFile(cmaes_readpara_t * t, const char *filenamedest)
 	}
 	for (ipara = 1; ipara < t->n1outpara; ++ipara) {
 		if (strncmp(t->rgsformat[ipara], " stopFitness ", 13) == 0)
-			if (t->stStopFitness.flg == 0) {
+			if (t->stopFitness.flg == 0) {
 				fprintf(fp, " stopFitness\n");
 				continue;
 			}
@@ -2683,8 +2693,8 @@ void cmaes_readpara_SupplementDefaults(cmaes_readpara_t * t)
 		t->seed = (unsigned int) labs((long) (100 * time(NULL) + clock()));
 	}
 
-	if (t->stStopFitness.flg == -1)
-		t->stStopFitness.flg = 0;
+	if (t->stopFitness.flg == -1)
+		t->stopFitness.flg = 0;
 
 	if (t->lambda < 2)
 		t->lambda = 4 + (int) (3 * log((double) N));
