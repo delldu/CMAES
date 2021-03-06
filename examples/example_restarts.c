@@ -1,41 +1,40 @@
 #include <stdio.h>
-#include <string.h> /* strncmp */
+#include <string.h>				/* strncmp */
 #include <math.h>
 #include <stdlib.h>
-#include <stddef.h> /* NULL */
-#include "cmaes_interface.h"
+#include <stddef.h>				/* NULL */
+#include "cmaes.h"
 /*___________________________________________________________________________
  *
  * Function Declarations
  *___________________________________________________________________________
  */
 double **OrthogonalBasis(int DIM);
-double f_rosenbrock( double const *x);
-double f_rand( double const *x);
-double f_constant( double const *x);
-double f_kugelmin1( double const *x);
-double f_sphere( double const *x);
-double f_stepsphere( double const *x);
-double f_cigar( double const *x);
-double f_cigtab( double const *x);
-double f_tablet( double const *x);
-double f_elli( double const *x);
-double f_ellirot( double const *x);
-double f_elli100( double const *x);
-double f_ellinumtest( double const *x);
-double f_parabR( double const *x);
-double f_sharpR( double const *x);
-double f_diffpow( double const *x);
-double f_diffpowrot( double const *x);
-double f_gleichsys5( double const *x);
+double f_rosenbrock(double const *x);
+double f_rand(double const *x);
+double f_constant(double const *x);
+double f_kugelmin1(double const *x);
+double f_sphere(double const *x);
+double f_stepsphere(double const *x);
+double f_cigar(double const *x);
+double f_cigtab(double const *x);
+double f_tablet(double const *x);
+double f_elli(double const *x);
+double f_ellirot(double const *x);
+double f_elli100(double const *x);
+double f_ellinumtest(double const *x);
+double f_parabR(double const *x);
+double f_sharpR(double const *x);
+double f_diffpow(double const *x);
+double f_diffpowrot(double const *x);
+double f_gleichsys5(double const *x);
 
-double * optimize(double(*pFun)(double const *), int number_of_restarts, 
-		double increment_factor_for_population_size,
-		char *input_parameter_filename);
+double *optimize(double (*pFun) (double const *), int number_of_restarts,
+				 double increment_factor_for_population_size, char *input_parameter_filename);
 
-extern void   cmaes_random_init( cmaes_random_t *, long unsigned seed /*=0=clock*/);
-extern void   cmaes_random_exit( cmaes_random_t *);
-extern double cmaes_random_Gauss( cmaes_random_t *); /* (0,1)-normally distributed */
+extern void cmaes_random_init(cmaes_random_t *, long unsigned seed /*=0=clock*/ );
+extern void cmaes_random_exit(cmaes_random_t *);
+extern double cmaes_random_Gauss(cmaes_random_t *);	/* (0,1)-normally distributed */
 
 /*___________________________________________________________________________
 //___________________________________________________________________________
@@ -45,13 +44,13 @@ extern double cmaes_random_Gauss( cmaes_random_t *); /* (0,1)-normally distribut
  */
 int main(int argn, char **args)
 {
-	typedef double (*pfun_t)(double const *);
-	pfun_t rgpFun[99];  /* array (range) of pointer to objective function */
-	char *filename = "cmaes_initials.par"; /* input parameter file */
+	typedef double (*pfun_t) (double const *);
+	pfun_t rgpFun[99];			/* array (range) of pointer to objective function */
+	char *filename = "cmaes_initials.par";	/* input parameter file */
 	FILE *fp = NULL;
 	int nb = 0, nbrestarts = 0;
 	double incpopsize = 2;
-	int maxnb, ret=1;
+	int maxnb, ret = 1;
 	char c;
 	double *x;
 
@@ -81,9 +80,7 @@ int main(int argn, char **args)
 	if (fp) {
 		fscanf(fp, " function number %d ", &nb);
 		/* go to next line, a bit sloppy */
-		for (c = ' ', ret = 1; c != '\n' && c != '\0' && c != EOF && ret && ret != EOF;
-				ret=fscanf(fp, "%c", &c))
-			;
+		for (c = ' ', ret = 1; c != '\n' && c != '\0' && c != EOF && ret && ret != EOF; ret = fscanf(fp, "%c", &c));
 		fscanf(fp, " restarts %d %lf", &nbrestarts, &incpopsize);
 		fclose(fp);
 		if (nb < 0 || nb > maxnb)
@@ -103,7 +100,7 @@ int main(int argn, char **args)
 
 	return 0;
 
-} /* main() */
+}								/* main() */
 
 /*___________________________________________________________________________
 //___________________________________________________________________________
@@ -113,34 +110,31 @@ int main(int argn, char **args)
 //___________________________________________________________________________
  */
 
-double * optimize(double(*pFun)(double const *), int nrestarts, double incpopsize, char * filename)
+double *optimize(double (*pFun) (double const *), int nrestarts, double incpopsize, char *filename)
 {
-	cmaes_t evo;       /* the optimizer */
-	double *const*pop; /* sampled population */
-	double *fitvals;   /* objective function values of sampled population */
-	double fbestever=0, *xbestever=NULL; /* store best solution */
+	cmaes_t evo;				/* the optimizer */
+	double *const *pop;			/* sampled population */
+	double *fitvals;			/* objective function values of sampled population */
+	double fbestever = 0, *xbestever = NULL;	/* store best solution */
 	double fmean;
-	int i, irun,
-	lambda = 0,      /* offspring population size, 0 invokes default */
-	countevals = 0;  /* used to set for restarts */
-	char const * stop; /* stop message */
+	int i, irun, lambda = 0,	/* offspring population size, 0 invokes default */
+		countevals = 0;			/* used to set for restarts */
+	char const *stop;			/* stop message */
 
-	for (irun = 0; irun < nrestarts+1; ++irun) /* restarts */
-	{
+	for (irun = 0; irun < nrestarts + 1; ++irun) {	/* restarts */
 		/* Parameters can be set in three ways. Here as input parameter
 		 * to cmaes_init, as value read from cmaes_initials.par in cmaes_readpara_init
 		 * during initialization, and as value read from cmaes_signals.par by
 		 * calling cmaes_ReadSignals explicitely.
 		 */
-		fitvals = cmaes_init(&evo, 0, NULL, NULL, 0, lambda, filename); /* allocs fitvals */
+		fitvals = cmaes_init(&evo, 0, NULL, NULL, 0, lambda, filename);	/* allocs fitvals */
 		printf("%s\n", cmaes_SayHello(&evo));
-		evo.countevals = countevals; /* a hack, effects the output and termination */
-		cmaes_ReadSignals(&evo, "cmaes_signals.par"); /* write initial values, headers in case */
+		evo.countevals = countevals;	/* a hack, effects the output and termination */
+		cmaes_ReadSignals(&evo, "cmaes_signals.par");	/* write initial values, headers in case */
 
-		while(!(stop=cmaes_TestForTermination(&evo)))
-		{
+		while (!(stop = cmaes_TestForTermination(&evo))) {
 			/* Generate population of new candidate solutions */
-			pop = cmaes_SamplePopulation(&evo); /* do not change content of pop */
+			pop = cmaes_SamplePopulation(&evo);	/* do not change content of pop */
 
 			/* Here optionally handle constraints etc. on pop. You may
 			 * call cmaes_ReSampleSingle(&evo, i) to resample the i-th
@@ -154,42 +148,40 @@ double * optimize(double(*pFun)(double const *), int nrestarts, double incpopsiz
 			/* Compute fitness value for each candidate solution */
 			for (i = 0; i < cmaes_Get(&evo, "popsize"); ++i) {
 				/* We may resample the solution i until it lies within the
-               feasible domain here. The function
-               is_feasible() needs to be user-defined.  
-               Assumptions: the feasible domain is convex, the optimum
-               is not on (or very close to) the domain boundary,
-               initialX is feasible (or in case typicalX +- 2*initialStandardDeviations
-               is feasible) and initialStandardDeviations is (are)
-               sufficiently small to prevent quasi-infinite looping.
+				   feasible domain here. The function
+				   is_feasible() needs to be user-defined.  
+				   Assumptions: the feasible domain is convex, the optimum
+				   is not on (or very close to) the domain boundary,
+				   initialX is feasible (or in case typicalX +- 2*initialStandardDeviations
+				   is feasible) and initialStandardDeviations is (are)
+				   sufficiently small to prevent quasi-infinite looping.
 				 */
 				/* while (!is_feasible(pop[i]))
-	         cmaes_ReSampleSingle(&evo, i); 
+				   cmaes_ReSampleSingle(&evo, i); 
 				 */
-				fitvals[i] = (*pFun)(pop[i]);
+				fitvals[i] = (*pFun) (pop[i]);
 			}
 
 			/* update search distribution */
 			cmaes_UpdateDistribution(&evo, fitvals);
 
 			/* read control signals for output and termination */
-			cmaes_ReadSignals(&evo, "cmaes_signals.par"); /* from file cmaes_signals.par */
+			cmaes_ReadSignals(&evo, "cmaes_signals.par");	/* from file cmaes_signals.par */
 
 			fflush(stdout);
-		} /* while !cmaes_TestForTermination(&evo) */
+		}						/* while !cmaes_TestForTermination(&evo) */
 
-		lambda = incpopsize * cmaes_Get(&evo, "lambda");   /* needed for the restart */
-		countevals = cmaes_Get(&evo, "eval");     /* ditto */
+		lambda = incpopsize * cmaes_Get(&evo, "lambda");	/* needed for the restart */
+		countevals = cmaes_Get(&evo, "eval");	/* ditto */
 
 		/* print some "final" output */
 		printf("%.0f generations, %.0f fevals (%.1f sec): f(x)=%g\n",
-				cmaes_Get(&evo, "gen"), cmaes_Get(&evo, "eval"),
-				evo.eigenTimings.totaltime,
-				cmaes_Get(&evo, "funval"));
+			   cmaes_Get(&evo, "gen"), cmaes_Get(&evo, "eval"), evo.eigenTimings.totaltime, cmaes_Get(&evo, "funval"));
 		printf("  (axis-ratio=%.2e, max/min-stddev=%.2e/%.2e)\n",
-				cmaes_Get(&evo, "maxaxislen") / cmaes_Get(&evo, "minaxislen"),
-				cmaes_Get(&evo, "maxstddev"), cmaes_Get(&evo, "minstddev")
-		);
-		printf("Stop (run %d):\n%s\n",  irun+1, cmaes_TestForTermination(&evo));
+			   cmaes_Get(&evo, "maxaxislen") / cmaes_Get(&evo, "minaxislen"),
+			   cmaes_Get(&evo, "maxstddev"), cmaes_Get(&evo, "minstddev")
+			);
+		printf("Stop (run %d):\n%s\n", irun + 1, cmaes_TestForTermination(&evo));
 
 		/* write some data */
 		cmaes_WriteToFile(&evo, "all", "allcmaes.dat");
@@ -197,124 +189,127 @@ double * optimize(double(*pFun)(double const *), int nrestarts, double incpopsiz
 		/* keep best ever solution */
 		if (irun == 0 || cmaes_Get(&evo, "fbestever") < fbestever) {
 			fbestever = cmaes_Get(&evo, "fbestever");
-			xbestever = cmaes_GetInto(&evo, "xbestever", xbestever); /* alloc mem if needed */
+			xbestever = cmaes_GetInto(&evo, "xbestever", xbestever);	/* alloc mem if needed */
 		}
 		/* best estimator for the optimum is xmean, therefore check */
-		if ((fmean = (*pFun)(cmaes_GetPtr(&evo, "xmean"))) < fbestever) {
+		if ((fmean = (*pFun) (cmaes_GetPtr(&evo, "xmean"))) < fbestever) {
 			fbestever = fmean;
 			xbestever = cmaes_GetInto(&evo, "xmean", xbestever);
 		}
 
-		cmaes_exit(&evo); /* does not effect the content of stop string and xbestever */
+		cmaes_exit(&evo);		/* does not effect the content of stop string and xbestever */
 
 		/* abandon restarts if target fitness value was achieved or MaxFunEvals reached */
-		if (stop) /* as it can be NULL */ {
+		if (stop) {				/* as it can be NULL */
 			if (strncmp(stop, "Fitness", 7) == 0 || strncmp(stop, "MaxFunEvals", 11) == 0)
 				break;
 		}
 		if (strncmp(stop, "Manual", 6) == 0) {
-			printf("Press RETURN to start next run\n"); fflush(stdout);
+			printf("Press RETURN to start next run\n");
+			fflush(stdout);
 			getchar();
 		}
-	} /* for restarts */
+	}							/* for restarts */
 
-	return xbestever; /* was dynamically allocated, should be freed in the end */
+	return xbestever;			/* was dynamically allocated, should be freed in the end */
 }
 
-#if 1  
+#if 1
 /*___________________________________________________________________________
 //___________________________________________________________________________
  */
-double f_rand( double const *x)
+double f_rand(double const *x)
 {
-	double d = (double)rand() / RAND_MAX;
+	double d = (double) rand() / RAND_MAX;
 	while (d == 0.)
-		d = (double)rand() / RAND_MAX;
+		d = (double) rand() / RAND_MAX;
 	return d;
 }
-double f_constant( double const *x)
+
+double f_constant(double const *x)
 {
-	return 1; 
+	return 1;
 }
 #endif
 
 static double SQR(double d)
 {
-	return (d*d);
+	return (d * d);
 }
 
 /* ----------------------------------------------------------------------- */
-double f_stepsphere( double const *x)
+double f_stepsphere(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	for (i = 0; i < DIM; ++i)
-		sum += floor(x[i]*x[i]);
+		sum += floor(x[i] * x[i]);
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_sphere( double const *x)
+double f_sphere(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	for (i = 0; i < DIM; ++i)
-		sum += x[i]*x[i];
+		sum += x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_cigar( double const *x)
+double f_cigar(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
 	for (i = 1; i < DIM; ++i)
-		sum += x[i]*x[i];
+		sum += x[i] * x[i];
 	sum *= 1e6;
-	sum += x[0]*x[0];
+	sum += x[0] * x[0];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_cigtab( double const *x)
+double f_cigtab(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
-	sum = x[0]*x[0] + 1e8*x[DIM-1]*x[DIM-1];
-	for (i = 1; i < DIM-1; ++i)
-		sum += 1e4*x[i]*x[i];
+	sum = x[0] * x[0] + 1e8 * x[DIM - 1] * x[DIM - 1];
+	for (i = 1; i < DIM - 1; ++i)
+		sum += 1e4 * x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_tablet( double const *x)
+double f_tablet(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
-	sum = 1e6*x[0]*x[0];
+	sum = 1e6 * x[0] * x[0];
 	for (i = 1; i < DIM; ++i)
-		sum += x[i]*x[i];
+		sum += x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
 /* a hack, memory is never released */
-double **OrthogonalBasis(int DIM) {
+double **OrthogonalBasis(int DIM)
+{
 	static int b_dim;
 	static double **b;
 	double sp;
-	int i,j,k;
+	int i, j, k;
 	cmaes_random_t R;
 
-	if(b_dim != 0) { /* Initialization was done */
+	if (b_dim != 0) {			/* Initialization was done */
 
 		if (b_dim != DIM) {
 			printf("function OrthogonalBasis cannot change dimensionality in file example2.c");
@@ -325,10 +320,10 @@ double **OrthogonalBasis(int DIM) {
 	}
 
 	/* Otherwise initialize basis b */
-	cmaes_random_init(&R, 2); /* TODO: choose not always the same basis? */
+	cmaes_random_init(&R, 2);	/* TODO: choose not always the same basis? */
 
 	/* allocate b */
-	b = (double **) calloc((unsigned) DIM, sizeof(double*));
+	b = (double **) calloc((unsigned) DIM, sizeof(double *));
 	if (!b) {
 		printf("calloc failed in function OrthogonalBasis in file example2.c");
 		exit(0);
@@ -348,15 +343,15 @@ double **OrthogonalBasis(int DIM) {
 		for (j = 0; j < DIM; ++j)
 			b[i][j] = cmaes_random_Gauss(&R);
 		/* substract projection of previous vectors */
-		for (j = i-1; j >= 0; --j) {
+		for (j = i - 1; j >= 0; --j) {
 			for (sp = 0., k = 0; k < DIM; ++k)
-				sp += b[i][k]*b[j][k]; /* scalar product */
+				sp += b[i][k] * b[j][k];	/* scalar product */
 			for (k = 0; k < DIM; ++k)
-				b[i][k] -= sp * b[j][k]; /* substract */
+				b[i][k] -= sp * b[j][k];	/* substract */
 		}
 		/* normalize */
 		for (sp = 0., k = 0; k < DIM; ++k)
-			sp += b[i][k]*b[i][k]; /* squared norm */
+			sp += b[i][k] * b[i][k];	/* squared norm */
 		for (k = 0; k < DIM; ++k)
 			b[i][k] /= sqrt(sp);
 	}
@@ -364,14 +359,14 @@ double **OrthogonalBasis(int DIM) {
 
 	return b;
 
-} /* OrthogonalBasis(int DIM) */
+}								/* OrthogonalBasis(int DIM) */
 
 /* ----------------------------------------------------------------------- */
-double f_ellirot( double const *x)
+double f_ellirot(double const *x)
 {
 	int i, k;
 	double sum = 0., y;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	double **B = OrthogonalBasis(DIM);
 
 	if (DIM == 1)
@@ -379,58 +374,59 @@ double f_ellirot( double const *x)
 	for (i = 0; i < DIM; ++i) {
 		for (y = 0., k = 0; k < DIM; ++k)
 			y += B[i][k] * x[k];
-		sum += exp(log(1e3) * 2. * (double)(i)/(DIM-1)) * y*y;
+		sum += exp(log(1e3) * 2. * (double) (i) / (DIM - 1)) * y * y;
 	}
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_elli( double const *x)
+double f_elli(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
 	if (DIM == 1)
 		return x[0] * x[0];
 	for (i = 0; i < DIM; ++i)
-		sum += exp(log(1000.) * 2. * (double)(i)/(DIM-1)) * x[i]*x[i];
+		sum += exp(log(1000.) * 2. * (double) (i) / (DIM - 1)) * x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_elli100( double const *x)
+double f_elli100(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
 	if (DIM == 1)
 		return x[0] * x[0];
 	for (i = 0; i < DIM; ++i)
-		sum += exp(log(100.) * 2. * (double)(i)/(DIM-1)) * x[i]*x[i];
+		sum += exp(log(100.) * 2. * (double) (i) / (DIM - 1)) * x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_diffpow( double const *x)
+double f_diffpow(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
 	if (DIM == 1)
 		return x[0] * x[0];
 	for (i = 0; i < DIM; ++i)
-		sum += pow(fabs(x[i]), 2.+10*(double)(i)/(DIM-1));
+		sum += pow(fabs(x[i]), 2. + 10 * (double) (i) / (DIM - 1));
 	return sum;
 }
+
 /* ----------------------------------------------------------------------- */
-double f_diffpowrot( double const *x)
+double f_diffpowrot(double const *x)
 {
 	int i, k;
 	double sum = 0., y;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	double **B = OrthogonalBasis(DIM);
 
 	if (DIM == 1)
@@ -438,86 +434,84 @@ double f_diffpowrot( double const *x)
 	for (i = 0; i < DIM; ++i) {
 		for (y = 0., k = 0; k < DIM; ++k)
 			y += B[i][k] * x[k];
-		sum += pow(fabs(y), 2.+10*(double)(i)/(DIM-1));
+		sum += pow(fabs(y), 2. + 10 * (double) (i) / (DIM - 1));
 	}
 	return sum;
 }
+
 /* ----------------------------------------------------------------------- */
-double f_kugelmin1( double const *x)
+double f_kugelmin1(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 
 	for (i = 1; i < DIM; ++i)
-		sum += x[i]*x[i];
+		sum += x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_rosenbrock( double const *x)
+double f_rosenbrock(double const *x)
 /*
 	Rosenbrock's Function, generalized.
  */
 {
 	double qualitaet;
 	int i;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	qualitaet = 0.0;
 
-	for( i = DIM-2; i >= 0; --i)
-		qualitaet += 100.*SQR(SQR(x[i])-x[i+1]) + SQR(1.-x[i]);
-	return ( qualitaet);
-} /* f_rosenbrock() */
+	for (i = DIM - 2; i >= 0; --i)
+		qualitaet += 100. * SQR(SQR(x[i]) - x[i + 1]) + SQR(1. - x[i]);
+	return (qualitaet);
+}								/* f_rosenbrock() */
 
 /* ----------------------------------------------------------------------- */
-double f_parabR( double const *x)
+double f_parabR(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	for (i = 1; i < DIM; ++i)
-		sum += x[i]*x[i];
-	return -x[0] + 100.*sum;
+		sum += x[i] * x[i];
+	return -x[0] + 100. * sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_sharpR( double const *x)
+double f_sharpR(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	for (i = 1; i < DIM; ++i)
-		sum += x[i]*x[i];
-	return -x[0] + 100*sqrt(sum);
+		sum += x[i] * x[i];
+	return -x[0] + 100 * sqrt(sum);
 }
 
 /* ----------------------------------------------------------------------- */
-double f_ellinumtest( double const *x)
+double f_ellinumtest(double const *x)
 {
 	int i;
 	double sum = 0.;
-	int DIM = (int)(x[-1]);
+	int DIM = (int) (x[-1]);
 	static double maxVerhaeltnis = 0.;
-	if (maxVerhaeltnis == 0.)
-	{
-		for (maxVerhaeltnis = 1.;
-				maxVerhaeltnis < 1e99 && maxVerhaeltnis < 2. * maxVerhaeltnis;
-				maxVerhaeltnis *= 2.)
+	if (maxVerhaeltnis == 0.) {
+		for (maxVerhaeltnis = 1.; maxVerhaeltnis < 1e99 && maxVerhaeltnis < 2. * maxVerhaeltnis; maxVerhaeltnis *= 2.)
 			if (maxVerhaeltnis == maxVerhaeltnis + 1.)
 				break;
 		maxVerhaeltnis *= 10.;
-		maxVerhaeltnis = sqrt (maxVerhaeltnis);
+		maxVerhaeltnis = sqrt(maxVerhaeltnis);
 	}
 	if (DIM < 3)
 		return x[0] * x[0];
 	for (i = 1; i < DIM; ++i)
-		sum += exp(log(maxVerhaeltnis) * 2. * (double)(i-1)/(DIM-2)) * x[i]*x[i];
+		sum += exp(log(maxVerhaeltnis) * 2. * (double) (i - 1) / (DIM - 2)) * x[i] * x[i];
 	return sum;
 }
 
 /* ----------------------------------------------------------------------- */
-double f_gleichsys5( double const *x)
+double f_gleichsys5(double const *x)
 /*
 	Gleichungssystem 5-dimensional von Juergen Bremer
 	Fuer jede Zeile soll gelten:
@@ -529,29 +523,26 @@ double f_gleichsys5( double const *x)
 	double qualitaet = 0.0;
 
 #if 1
-	static double koeff[5][6] =
-	{/* c_1,   c_2,  c_3,   c_4,  c_5,   c_0 */
-			{   4,   191,   27,   199,   21,   172},
-			{ 191, 10883, 1413,  5402,  684, -8622},
-			{  27,  1413,  191,  1032,  118,   -94},
-			{ 199,  5402, 1032, 29203, 2331, 78172},
-			{  21,   684,  118,  2331,  199,  5648}
+	static double koeff[5][6] = {	/* c_1,   c_2,  c_3,   c_4,  c_5,   c_0 */
+		{4, 191, 27, 199, 21, 172},
+		{191, 10883, 1413, 5402, 684, -8622},
+		{27, 1413, 191, 1032, 118, -94},
+		{199, 5402, 1032, 29203, 2331, 78172},
+		{21, 684, 118, 2331, 199, 5648}
 	};
 	int i, j;
 	double sum;
 
-	for( i = 0; i < 5; ++i)
-	{
+	for (i = 0; i < 5; ++i) {
 		sum = koeff[i][5];
-		for ( j = 0; j < 5; ++j)
-		{
+		for (j = 0; j < 5; ++j) {
 			sum += koeff[i][j] * x[j];
 		}
 		qualitaet += sum * sum;
 	}
 #endif
-return qualitaet;
-} /* f_gleichsys5() */
+	return qualitaet;
+}								/* f_gleichsys5() */
 
 
 /*
