@@ -34,7 +34,7 @@ double *optimize(double (*pFun) (double const *), int number_of_restarts,
 
 extern void cmaes_random_init(cmaes_random_t *, long unsigned seed /*=0=clock*/ );
 extern void cmaes_random_exit(cmaes_random_t *);
-extern double cmaes_random_Gauss(cmaes_random_t *);	/* (0,1)-normally distributed */
+extern double cmaes_random_Gauss();	/* (0,1)-normally distributed */
 
 /*___________________________________________________________________________
 //___________________________________________________________________________
@@ -341,7 +341,7 @@ double **OrthogonalBasis(int DIM)
 	for (i = 0; i < DIM; ++i) {
 		/* sample components gaussian */
 		for (j = 0; j < DIM; ++j)
-			b[i][j] = cmaes_random_Gauss(&R);
+			b[i][j] = cmaes_random_Gauss();
 		/* substract projection of previous vectors */
 		for (j = i - 1; j >= 0; --j) {
 			for (sp = 0., k = 0; k < DIM; ++k)
@@ -355,7 +355,6 @@ double **OrthogonalBasis(int DIM)
 		for (k = 0; k < DIM; ++k)
 			b[i][k] /= sqrt(sp);
 	}
-	cmaes_random_exit(&R);
 
 	return b;
 

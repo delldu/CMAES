@@ -28,7 +28,6 @@ typedef struct
 	long int startseed;
 	long int aktseed;
 	long int aktrand;
-	long int *rgrand;
 
 	/* Variables for Gauss() */
 	short flgstored;
@@ -198,7 +197,6 @@ typedef struct
 
 /* --- additional functions --- */
 	double *const *cmaes_ReSampleSingle(cmaes_t * t, int index);
-	double const *cmaes_ReSampleSingle_old(cmaes_t *, double *rgx);
 	double *cmaes_SampleSingleInto(cmaes_t * t, double *rgx);
 	void cmaes_UpdateEigensystem(cmaes_t *, int flgforce);
 

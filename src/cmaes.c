@@ -157,9 +157,7 @@
 
 /* see cmaes.h for those, not listed here */
 long cmaes_random_init(cmaes_random_t *, long unsigned seed /* 0==clock */ );
-void cmaes_random_exit(cmaes_random_t *);
-double cmaes_random_Gauss(cmaes_random_t *);	/* (0,1)-normally distributed */
-double cmaes_random_Uniform(cmaes_random_t *);
+double cmaes_random_Gauss();	/* (0,1)-normally distributed */
 long cmaes_random_Start(cmaes_random_t *, long unsigned seed /* 0==1 */ );
 
 void cmaes_timings_init(cmaes_timings_t * timing);
@@ -234,8 +232,8 @@ static char *getTimeStr(void)
 
 char *cmaes_SayHello(cmaes_t * t)
 {
-	/* write initial message */
-	sprintf(t->sOutString,
+	// against memory segment fault means less attack !!!
+	snprintf(t->sOutString, sizeof(t->sOutString), 
 			"(%d,%d)-CMA-ES(mu_eff=%.1f), Ver=\"%s\", dimension=%d, diagonalIterations=%ld, randomSeed=%d (%s)",
 			t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, (long) t->sp.diagonalCov,
 			t->sp.seed, getTimeStr());
@@ -381,7 +379,7 @@ double *cmaes_init_final(cmaes_t * t /* "this" */ )
 	/* use in case xstart as typicalX */
 	if (t->sp.typicalXcase)
 		for (i = 0; i < N; ++i)
-			t->rgxmean[i] += t->sigma * t->rgD[i] * cmaes_random_Gauss(&t->rand);
+			t->rgxmean[i] += t->sigma * t->rgD[i] * cmaes_random_Gauss();
 
 	if (strcmp(t->sp.resumefile, "_no_") != 0)
 		cmaes_resume_distribution(t, t->sp.resumefile);
@@ -571,7 +569,6 @@ void cmaes_exit(cmaes_t * t)
 	free(t->publicFitness);
 	free(--t->rgFuncValue);
 	free(--t->arFuncValueHist);
-	cmaes_random_exit(&t->rand);
 	cmaes_readpara_exit(&t->sp);
 }								/* cmaes_exit() */
 
@@ -632,9 +629,9 @@ double *const *cmaes_SamplePopulation(cmaes_t * t)
 	for (iNk = 0; iNk < t->sp.lambda; ++iNk) {	/* generate scaled cmaes_random vector (D * z)    */
 		for (i = 0; i < N; ++i) {
 			if (flgdiag)
-				t->rgrgx[iNk][i] = xmean[i] + t->sigma * t->rgD[i] * cmaes_random_Gauss(&t->rand);
+				t->rgrgx[iNk][i] = xmean[i] + t->sigma * t->rgD[i] * cmaes_random_Gauss();
 			else
-				t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss(&t->rand);
+				t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss();
 		}
 		if (!flgdiag)
 			/* add mutation (sigma * B * (D*z)) */
@@ -643,21 +640,6 @@ double *const *cmaes_SamplePopulation(cmaes_t * t)
 					sum += t->B[i][j] * t->rgdTmp[j];
 				t->rgrgx[iNk][i] = xmean[i] + t->sigma * sum;
 			}
-#if 0			
-		// Normal rgrgx
-		double mean;
-		mean = sum = 0.0;
-		for (i = 0; i < N; i++) {
-			mean += t->rgrgx[iNk][i];
-			sum += t->rgrgx[iNk][i] * t->rgrgx[iNk][i];
-		}
-		mean /= N;
-		sum /= N;
-		sum -= mean * mean;
-		sum = sqrt(sum + 1e-6);
-		for (i = 0; i < N; i++)
-			t->rgrgx[iNk][i] = (t->rgrgx[iNk][i] - mean)/sum;
-#endif			
 	}
 	if (t->state == 3 || t->gen == 0)
 		++t->gen;
@@ -665,27 +647,6 @@ double *const *cmaes_SamplePopulation(cmaes_t * t)
 
 	return (t->rgrgx);
 }								/* SamplePopulation() */
-
-/* --------------------------------------------------------- */
-/* --------------------------------------------------------- */
-double const *cmaes_ReSampleSingle_old(cmaes_t * t, double *rgx)
-{
-	int i, j, N = t->sp.N;
-	double sum;
-
-	if (rgx == NULL)
-		FATAL("cmaes_ReSampleSingle(): Missing input double *x", 0, 0, 0);
-
-	for (i = 0; i < N; ++i)
-		t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss(&t->rand);
-	/* add mutation (sigma * B * (D*z)) */
-	for (i = 0; i < N; ++i) {
-		for (j = 0, sum = 0.; j < N; ++j)
-			sum += t->B[i][j] * t->rgdTmp[j];
-		rgx[i] = t->rgxmean[i] + t->sigma * sum;
-	}
-	return rgx;
-}
 
 /* --------------------------------------------------------- */
 /* --------------------------------------------------------- */
@@ -697,13 +658,13 @@ double *const *cmaes_ReSampleSingle(cmaes_t * t, int iindex)
 	static char s[99];
 
 	if (iindex < 0 || iindex >= t->sp.lambda) {
-		sprintf(s, "index==%d must be between 0 and %d", iindex, t->sp.lambda);
+		snprintf(s, sizeof(s), "index==%d must be between 0 and %d", iindex, t->sp.lambda);
 		FATAL("cmaes_ReSampleSingle(): Population member ", s, 0, 0);
 	}
 	rgx = t->rgrgx[iindex];
 
 	for (i = 0; i < N; ++i)
-		t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss(&t->rand);
+		t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss();
 	/* add mutation (sigma * B * (D*z)) */
 	for (i = 0; i < N; ++i) {
 		for (j = 0, sum = 0.; j < N; ++j)
@@ -724,7 +685,7 @@ double *cmaes_SampleSingleInto(cmaes_t * t, double *rgx)
 		rgx = new_double(N);
 
 	for (i = 0; i < N; ++i)
-		t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss(&t->rand);
+		t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss();
 	/* add mutation (sigma * B * (D*z)) */
 	for (i = 0; i < N; ++i) {
 		for (j = 0, sum = 0.; j < N; ++j)
@@ -1775,13 +1736,13 @@ static int Check_Eigen(int N, double **C, double *diag, double **Q)
 			/* check here, is the normalization the right one? */
 			if (fabs(cc - C[i > j ? i : j][i > j ? j : i]) / sqrt(C[i][i] * C[j][j]) > 1e-10
 				&& fabs(cc - C[i > j ? i : j][i > j ? j : i]) > 3e-14) {
-				sprintf(s, "%d %d: %.17e %.17e, %e",
+				snprintf(s, sizeof(s), "%d %d: %.17e %.17e, %e",
 						i, j, cc, C[i > j ? i : j][i > j ? j : i], cc - C[i > j ? i : j][i > j ? j : i]);
 				ERRORMESSAGE("cmaes_t:Eigen(): imprecise result detected ", s, 0, 0);
 				++res;
 			}
 			if (fabs(dd - (i == j)) > 1e-10) {
-				sprintf(s, "%d %d %.17e ", i, j, dd);
+				snprintf(s, sizeof(s), "%d %d %.17e ", i, j, dd);
 				ERRORMESSAGE("cmaes_t:Eigen(): imprecise result detected (Q not orthog.)", s, 0, 0);
 				++res;
 			}
@@ -2165,37 +2126,6 @@ static void Householder2(int n, double **V, double *d, double *e)
 
 }								/* Housholder() */
 
-
-#if 0
-/* ========================================================= */
-static void WriteMaxErrorInfo(cmaes_t * t)
-{
-	int i, j, N = t->sp.N;
-	char *s = (char *) new_void(200 + 30 * (N + 2), sizeof(char));
-	s[0] = '\0';
-
-	sprintf(s + strlen(s), "\nComplete Info\n");
-	sprintf(s + strlen(s), " Gen       %20.12g\n", t->gen);
-	sprintf(s + strlen(s), " Dimension %d\n", N);
-	sprintf(s + strlen(s), " sigma     %e\n", t->sigma);
-	sprintf(s + strlen(s), " lastminEW %e\n", t->dLastMinEWgroesserNull);
-	sprintf(s + strlen(s), " maxKond   %e\n\n", t->dMaxSignifKond);
-	sprintf(s + strlen(s), "     x-vector          rgD     Basis...\n");
-	ERRORMESSAGE(s, 0, 0, 0);
-	s[0] = '\0';
-	for (i = 0; i < N; ++i) {
-		sprintf(s + strlen(s), " %20.12e", t->rgxmean[i]);
-		sprintf(s + strlen(s), " %10.4e", t->rgD[i]);
-		for (j = 0; j < N; ++j)
-			sprintf(s + strlen(s), " %10.2e", t->B[i][j]);
-		ERRORMESSAGE(s, 0, 0, 0);
-		s[0] = '\0';
-	}
-	ERRORMESSAGE("\n", 0, 0, 0);
-	free(s);
-}								/* WriteMaxErrorInfo() */
-#endif
-
 /* --------------------------------------------------------- */
 /* --------------- Functions: cmaes_timings_t -------------- */
 /* --------------------------------------------------------- */
@@ -2305,17 +2235,11 @@ long cmaes_random_init(cmaes_random_t * t, long unsigned inseed)
 	clock_t cloc = clock();
 
 	t->flgstored = 0;
-	t->rgrand = (long *) new_void(32, sizeof(long));
 	if (inseed < 1) {
 		while ((long) (cloc - clock()) == 0);	/* TODO: remove this for time critical applications? */
 		inseed = (long unsigned) labs((long) (100 * time(NULL) + clock()));
 	}
 	return cmaes_random_Start(t, inseed);
-}
-
-void cmaes_random_exit(cmaes_random_t * t)
-{
-	free(t->rgrand);
 }
 
 /* --------------------------------------------------------- */
@@ -2337,49 +2261,37 @@ long cmaes_random_Start(cmaes_random_t * t, long unsigned inseed)
 			- 2836 * tmp;
 		if (t->aktseed < 0)
 			t->aktseed += 2147483647;
-		if (i < 32)
-			t->rgrand[i] = t->aktseed;
 	}
-	t->aktrand = t->rgrand[0];
 	return inseed;
 }
 
 /* --------------------------------------------------------- */
-double cmaes_random_Gauss(cmaes_random_t * t)
+double cmaes_random_Gauss()
 {
-	double x1, x2, rquad, fac;
-
-	if (t->flgstored) {
-		t->flgstored = 0;
-		return t->hold;
-	}
-	do {
-		x1 = 2.0 * cmaes_random_Uniform(t) - 1.0;
-		x2 = 2.0 * cmaes_random_Uniform(t) - 1.0;
-		rquad = x1 * x1 + x2 * x2;
-	} while (rquad >= 1 || rquad <= 0);
-	fac = sqrt(-2.0 * log(rquad) / rquad);
-	t->flgstored = 1;
-	t->hold = fac * x1;
-
-	return fac * x2;
+	// Marsaglia and Bray 1964
+    static double V1, V2, S;
+    static int phase = 0;
+    double X;
+     
+    if ( phase == 0 ) {
+        do {
+            double U1 = (double)rand() / RAND_MAX;
+            double U2 = (double)rand() / RAND_MAX;
+             
+            V1 = 2 * U1 - 1;
+            V2 = 2 * U2 - 1;
+            S = V1 * V1 + V2 * V2;
+        } while(S >= 1 || S == 0);
+         
+        X = V1 * sqrt(-2 * log(S) / S);
+    } else
+        X = V2 * sqrt(-2 * log(S) / S);
+         
+    phase = 1 - phase;
+ 
+    return X;
 }
 
-/* --------------------------------------------------------- */
-double cmaes_random_Uniform(cmaes_random_t * t)
-{
-	long tmp;
-
-	tmp = t->aktseed / 127773;
-	t->aktseed = 16807 * (t->aktseed - tmp * 127773)
-		- 2836 * tmp;
-	if (t->aktseed < 0)
-		t->aktseed += 2147483647;
-	tmp = t->aktrand / 67108865;
-	t->aktrand = t->rgrand[tmp];
-	t->rgrand[tmp] = t->aktseed;
-	return (double) (t->aktrand) / (2.147483647e9);
-}
 
 /* --------------------------------------------------------- */
 static void printErrorStrings(FILE * fd, char const *s1, char const *s2, char const *s3, char const *s4)
@@ -2921,7 +2833,7 @@ static void *new_void(int n, size_t size)
 	static char s[70];
 	void *p = calloc((unsigned) n, size);
 	if (p == NULL) {
-		sprintf(s, "new_void(): calloc(%ld,%ld) failed", (long) n, (long) size);
+		snprintf(s, sizeof(s), "new_void(): calloc(%ld,%ld) failed", (long) n, (long) size);
 		FATAL(s, 0, 0, 0);
 	}
 	return p;
@@ -2937,7 +2849,7 @@ static double *new_double(int n)
 	static char s[170];
 	double *p = (double *) calloc((unsigned) n, sizeof(double));
 	if (p == NULL) {
-		sprintf(s, "new_double(): calloc(%ld,%ld) failed", (long) n, (long) sizeof(double));
+		snprintf(s, sizeof(s), "new_double(): calloc(%ld,%ld) failed", (long) n, (long) sizeof(double));
 		FATAL(s, 0, 0, 0);
 	}
 	return p;
@@ -2957,7 +2869,7 @@ static char *new_string(const char *ins)
 
 	p = (char *) calloc(len + 1, sizeof(char));
 	if (p == NULL) {
-		sprintf(s, "new_string(): calloc(%ld,%ld) failed", (long) len, (long) sizeof(char));
+		snprintf(s, sizeof(s), "new_string(): calloc(%ld,%ld) failed", (long) len, (long) sizeof(char));
 		FATAL(s, 0, 0, 0);
 	}
 	for (i = 0; i < len; ++i)
@@ -3002,9 +2914,6 @@ static void FATAL(char const *s1, char const *s2, char const *s3, char const *s4
 static void ERRORMESSAGE(char const *s1, char const *s2, char const *s3, char const *s4)
 {
 #if 1
-	/*  static char szBuf[700];  desirable but needs additional input argument 
-	   sprintf(szBuf, "%f:%f", gen, gen*lambda);
-	 */
 	FILE *fp = fopen("errcmaes.err", "a");
 	if (fp == NULL) {
 		printf("\nFATAL ERROR: ");

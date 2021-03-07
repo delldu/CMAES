@@ -181,28 +181,6 @@ cmaes_SampleSingleInto(cmaes_t evo_ptr, double *x)
     See also ReSampleSingle()
 
 
-double * const x
-cmaes_ReSampleSingle_old(cmaes_t evo_ptr, double *x) 
-
-    Depreciated: use (redefined) ReSampleSingle() or 
-         SampleSingleInto() 
-
-    Input parameters: 
-      evo_ptr, cmaes_t *: Pointer to cma-es struct. 
-      x, double const *: element of the return value of 
-         cmaes_SamplePopulation, double **pop, that is 
-         pop[0..len-1] where len=cmaes_Get("lambda"). 
-         This solution vector of the population gets sampled
-         a new value. 
-
-    Return, double *: A pointer to the resampled "population" 
-        member. 
-
-    Details: Can be called after cmaes_SamplePopulation to 
-      resample single solutions. In general,
-      the function can be used to sample as many independent 
-      mean+sigma*Normal(0,C) distributed vectors as desired. 
-
 double * x
 cmaes_PerturbSolutionInto(cmaes_t evo_ptr, double *x, double *x_in, double eps) 
 
