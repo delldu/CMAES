@@ -2702,6 +2702,8 @@ void cmaes_readpara_SupplementDefaults(cmaes_readpara_t * t)
 	int N = t->N;
 	clock_t cloc = clock();
 
+	// 
+
 	if (t->flgsupplemented)
 		FATAL("cmaes_readpara_SupplementDefaults() cannot be called twice.", 0, 0, 0);
 	if (t->seed < 1) {
@@ -2712,6 +2714,7 @@ void cmaes_readpara_SupplementDefaults(cmaes_readpara_t * t)
 	if (t->stopFitness.flg == -1)
 		t->stopFitness.flg = 0;
 
+	// Strategy parameter setting: Selection
 	if (t->lambda < 2)
 		t->lambda = 4 + (int) (3 * log((double) N));
 	if (t->mu == -1) {
@@ -2721,10 +2724,17 @@ void cmaes_readpara_SupplementDefaults(cmaes_readpara_t * t)
 	if (t->weights == NULL)
 		cmaes_readpara_SetWeights(t, t->weigkey);
 
+	// Strategy parameter setting: Adaptation
+	// cc = (4+mueff/N) / (N+4 + 2*mueff/N); % time constant for cumulation for C
+	// cs = (mueff+2)/(N+mueff+5); % t-const for cumulation for sigma control
+	// c1 = 2 / ((N+1.3)ˆ2+mueff); % learning rate for rank-one update of C
+	// cmu = 2 * (mueff-2+1/mueff) / ((N+2)ˆ2+2*mueff/2); % and for rank-mu update
+	// damps = 1 + 2*max(0, sqrt((mueff-1)/(N+1))-1) + cs; % damping for sigma
+
 	if (t->cs > 0)				/* factor was read */
 		t->cs *= (t->mueff + 2.) / (N + t->mueff + 3.);
 	if (t->cs <= 0 || t->cs >= 1)
-		t->cs = (t->mueff + 2.) / (N + t->mueff + 3.);
+		t->cs = (t->mueff + 2.) / (N + t->mueff + 3.); // for sigma control
 
 	if (t->ccumcov <= 0 || t->ccumcov > 1)
 		t->ccumcov = 4. / (N + 4);
@@ -2752,6 +2762,7 @@ void cmaes_readpara_SupplementDefaults(cmaes_readpara_t * t)
 	if (t->stopMaxIter == -1)
 		t->stopMaxIter = ceil((double) (t->stopMaxFunEvals / t->lambda));
 
+	// damping for sigma, closed to 1 ...
 	if (t->damps < 0)
 		t->damps = 1;			/* otherwise a factor was read */
 	t->damps = t->damps * (1 + 2 * douMax(0., sqrt((t->mueff - 1.) / (N + 1.)) - 1))	/* basic factor */
