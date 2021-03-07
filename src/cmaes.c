@@ -643,6 +643,21 @@ double *const *cmaes_SamplePopulation(cmaes_t * t)
 					sum += t->B[i][j] * t->rgdTmp[j];
 				t->rgrgx[iNk][i] = xmean[i] + t->sigma * sum;
 			}
+#if 0			
+		// Normal rgrgx
+		double mean;
+		mean = sum = 0.0;
+		for (i = 0; i < N; i++) {
+			mean += t->rgrgx[iNk][i];
+			sum += t->rgrgx[iNk][i] * t->rgrgx[iNk][i];
+		}
+		mean /= N;
+		sum /= N;
+		sum -= mean * mean;
+		sum = sqrt(sum + 1e-6);
+		for (i = 0; i < N; i++)
+			t->rgrgx[iNk][i] = (t->rgrgx[iNk][i] - mean)/sum;
+#endif			
 	}
 	if (t->state == 3 || t->gen == 0)
 		++t->gen;
@@ -957,7 +972,7 @@ static void Adapt_C2(cmaes_t * t, int hsig)
 			for (j = flgdiag ? i : 0; j <= i; ++j) {
 				t->C[i][j] = (1 - ccov1 - ccovmu) * t->C[i][j]
 					+ ccov1 * (t->rgpc[i] * t->rgpc[j]
-							   + (1 - hsig) * t->sp.ccumcov * (2. - t->sp.ccumcov) * t->C[i][j]);
+					+ (1 - hsig) * t->sp.ccumcov * (2. - t->sp.ccumcov) * t->C[i][j]);
 				for (k = 0; k < t->sp.mu; ++k) {	/* additional rank mu update */
 					t->C[i][j] += ccovmu * t->sp.weights[k]
 						* (t->rgrgx[t->index[k]][i] - t->rgxold[i])
@@ -2346,6 +2361,7 @@ double cmaes_random_Gauss(cmaes_random_t * t)
 	fac = sqrt(-2.0 * log(rquad) / rquad);
 	t->flgstored = 1;
 	t->hold = fac * x1;
+
 	return fac * x2;
 }
 

@@ -35,32 +35,19 @@ double fitfun(double const *x, unsigned long N)
 
 double *search(int epochs)
 {
+	int i;
 	cmaes_t evo;				/* an CMA-ES type struct or "object" */
 	cmaes_boundary_t boundaries;
 	double *cost_values, *x_in_bounds, *const *pop;
 	double lowerBounds[] = { -1.0, -100.0 };	/* last number is recycled for all remaining coordinates */
 	double upperBounds[] = { +1.0, 100.0 };
-
-	double xstart[Z_SPACE_DIM];
-	double stddev[Z_SPACE_DIM];
-	int lambda;
-
 	unsigned long dimension;
-	int i;
 
 	/* initialize boundaries ... */
 	cmaes_boundary_init(&boundaries, lowerBounds, upperBounds, 1);
 
-	for (i = 0; i < Z_SPACE_DIM; i++) {
-		xstart[i] = 0.0;
-		stddev[i] = 1.0;
-	}
-	lambda = 4 + 3*9;	// 4 + 3*log(Z_SPACE_DIM)
-
-	// cost_values = cmaes_init(&evo, Z_SPACE_DIM dimmesion, xstart, stddev, 0, lambda, "none");
-	cmaes_init_para(&evo, Z_SPACE_DIM /*dimmesion*/, xstart, stddev, 0, lambda, "none");
-
-	// evo.sigma = 1.0;
+	// cost_values = cmaes_init(&evo, Z_SPACE_DIM dimmesion, xstart, stddev, 0, / * lambda */, "none");
+	cmaes_init_para(&evo, Z_SPACE_DIM /*dimmesion*/, NULL, NULL, 0, 0 /* lambda */, "none");
 
 	evo.sp.stopMaxIter = epochs;	// stop after given number of iterations (generations)
 	evo.sp.stopFitness.flg = 1;
@@ -80,14 +67,23 @@ double *search(int epochs)
 
 		/* transform into bounds and evaluate the new search points */
 		for (i = 0; i < cmaes_Get(&evo, "lambda"); ++i) {
+			// CheckPoint("pop[%d] mean = %.4lf, stdv = %.4lf", i, 
+			// 	mean(pop[i], dimension), stdv(pop[i], dimension));
 			cmaes_boundary_transformation(&boundaries, pop[i], x_in_bounds, dimension);
+
+			// CheckPoint("x_in_bounds[%d] mean = %.4lf, stdv = %.4lf", i, 
+			// 	mean(x_in_bounds, dimension), stdv(x_in_bounds, dimension));
+
 			cost_values[i] = fitfun(x_in_bounds, dimension);	/* evaluate */
 		}
 
 		/* update the search distribution used for cmaes_SampleDistribution() */
 		cmaes_UpdateDistribution(&evo, cost_values);	/* assumes that pop[i] has not been modified */
 
-		printf("Progress %6.2f %% ...\n", (float)(100.0 * evo.gen/epochs));
+		if ((int)evo.gen % 10 == 0) {
+			printf("Progress %6.2f %% ...\n", (float)(100.0 * evo.gen/epochs));
+			fflush(stdout);
+		}
 	}
 	printf("Stop Condition:\n%s\n", cmaes_TestForTermination(&evo));	/* print termination reason */
 
@@ -135,7 +131,7 @@ int main(int argc, char **argv)
 	}
 
 	int i;
-	double *result = search(4096);
+	double *result = search(1024);
 
 	for (i = 0; i < 512; i++)
 		printf("%.2lf ", result[i]);
